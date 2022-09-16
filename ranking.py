@@ -1,3 +1,4 @@
+from fileinput import close
 from alpaca_trade_api.rest import REST, TimeFrame
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockLatestQuoteRequest
@@ -30,9 +31,19 @@ def sell(symbol):
 def closeall():
     trading_client.close_all_positions(cancel_orders=True)
 
-def rankall():
-    for symbol in portfolio:
-        rank(symbol)
+def rankAll():
+    data.clear()
+    portfolio = []
+    for symbol in sptickers:
+        ticker = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
+        quote = client.get_stock_latest_quote(ticker)
+        price = int(quote[symbol].ask_price)
+        print (price)
+        if price <= 100:
+            portfolio.append(symbol)
+            rank(symbol)
+        elif price > 100:
+            sptickers.remove(symbol)
     rankings = pd.DataFrame()
     rankings['symbol'] = portfolio
     rankings['Predictions'] = data
@@ -53,7 +64,6 @@ def rankall():
         sell(symbol)
         sellpos.append(symbol)
 def rank(symbol):
-    data = []
     start = (date.today() - relativedelta(weeks=1)).strftime("%Y-%m-%d")
     end = (date.today()- relativedelta(days=1)).strftime("%Y-%m-%d")
 
@@ -97,7 +107,7 @@ def rank(symbol):
 
 
     study = optuna.create_study(direction='maximize',)
-    study.optimize(objective, n_trials=10)
+    study.optimize(objective, n_trials=1)
     pred = study.best_value
 
     ticker = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
@@ -113,14 +123,16 @@ sp = pd.read_html('https://stockmarketmba.com/stocksinthesp500.php')
 
 client = StockHistoricalDataClient(api_key, secret_key)
 
-portfolio = []
+sptickers = []
 data = []
+#portfolioTest = ['APPS','AAPL']
 
 for x in sp:
     string =  (x['Symbol'])
     for y in string:
-        portfolio.append(y)
-portfolio.remove('TOTAL')
+        sptickers.append(y)
+sptickers.remove('TOTAL')
 
-rankall()
+
+rankAll()
 schedule.every().day.at("15:55").do(closeall)
